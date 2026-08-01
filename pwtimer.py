@@ -101,7 +101,7 @@ def read_password_gui():
     lbl_target.set_halign(Gtk.Align.START)
     entry_target = Gtk.Entry()
     entry_target.set_visibility(False)
-    entry_target.set_width_chars(30)
+    entry_target.set_width_chars(70)
 
     lbl_confirm = Gtk.Label(label="Confirm password:")
     lbl_confirm.set_halign(Gtk.Align.START)
