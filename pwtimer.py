@@ -223,7 +223,7 @@ def main():
             print(f"  -> {status} | Time: {time_taken:.3f}s | Chars: {char_count} | CPS: {cps:.0f} | WPM: {wpm:.0f}\n")
             
     except KeyboardInterrupt:
-        print("\n\nExiting. Target password wiped from memory.")
+        print("\n\nExiting.")
         sys.exit(0)
 
 if __name__ == "__main__":
