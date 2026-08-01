@@ -130,7 +130,7 @@ def read_password_gui():
         pw2 = entry_confirm.get_text()
         if pw1 == pw2 and len(pw1) > 0:
             result_pwd.append(pw1)
-            Gtk.main_quit()
+            win.destroy() # instead of Gtk.main_quit(). It triggers 'destroy' signal below
         else:
             lbl_error.set_markup("<span foreground='red'>Passwords do not match or are empty!</span>")
 
@@ -152,6 +152,11 @@ def read_password_gui():
     # Run GUI
     win.show_all()
     Gtk.main()
+
+    # CRITICAL FIX: Flush the GTK event queue so the compositor 
+    # fully removes the window before the blocking CLI loop starts.
+    while Gtk.events_pending():
+        Gtk.main_iteration()
 
     # If the user closed the window without submitting, result_pwd will be empty
     return result_pwd[0] if result_pwd else None
