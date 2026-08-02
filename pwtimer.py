@@ -13,25 +13,6 @@ DEFAULT_ARGON2_MEMORY = 1 << 16 # 64 MB
 DEFAULT_ARGON2_PARALLELISM = 4
 DEFAULT_ARGON2_TYPE = 'd'
 
-# # to lazy import argon2 module
-# _argon2_module = None
-# def get_argon2():
-#     """Lazily imports and returns the argon2 PasswordHasher. 
-#     Exits cleanly if missing and plaintext mode wasn't requested.
-#     """
-#     global _argon2_module
-#     if _argon2_module is not None:
-#         return _argon2_module
-#     try:
-#         import argon2
-#         _argon2_module = argon2
-#         return _argon2_module
-#     except ImportError:
-#         print("\nError: The Argon2 library is not installed.", file=sys.stderr)
-#         print("Install either python-argon2-cffi via pacman, python3-argon2 via apt/dnf, argon2-cffi via pip.", file=sys.stderr)
-#         print("Or use -P/--plain to store without hashing.", file=sys.stderr)
-#         sys.exit(1)
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Password Typing Trainer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
@@ -111,20 +92,32 @@ def load_from_json(filepath, requested_entry_name):
     entry = data[entry_name]
     return entry.get("algo"), entry.get("value")
 
+# to lazy import argon2 module
+_argon2_module = None
+def get_argon2():
+    """Lazily imports and returns the argon2 PasswordHasher. 
+    Exits cleanly if missing and plaintext mode wasn't requested.
+    """
+    global _argon2_module
+    if _argon2_module is not None:
+        return _argon2_module
+    try:
+        import argon2
+        _argon2_module = argon2
+        return _argon2_module
+    except ImportError:
+        print("\nError: The Argon2 library is not installed.", file=sys.stderr)
+        print("Install either python-argon2-cffi via pacman, python3-argon2 via apt/dnf, argon2-cffi via pip.", file=sys.stderr)
+        print("Or use -P/--plain to store without hashing.", file=sys.stderr)
+        sys.exit(1)
+
 def hash_password(plain_pw, args):
     """Hashes the password based on selected algorithm (or returns plaintext)."""
     if args.plain:
         return "plain", plain_pw
 
-    # TODO: use get_argon2()
-    try:
-        import argon2
-    except ImportError:
-        print("\nError: python-argon2-cffi is not installed.")
-        print("Install it via your package manager (e.g., sudo pacman -S python-argon2-cffi)")
-        print("Or use -P/--plain (with --i-understand-risks) to store without hashing.")
-        sys.exit(1)
-        
+    argon2 = get_argon2()
+
     type_map = {'id': argon2.Type.ID, 'i': argon2.Type.I, 'd': argon2.Type.D}
     
     ph = argon2.PasswordHasher(
@@ -142,13 +135,7 @@ def verify_password(attempt, stored_algo, stored_value):
         return attempt == stored_value
         
     elif stored_algo == "argon2":
-        # TODO: use get_argon2()
-        try:
-            import argon2
-        except ImportError:
-            print("\nError: Attempting to verify Argon2 hash, but python-argon2-cffi is not installed.")
-            print("Please install it to read this file.")
-            sys.exit(1)
+        argon2 = get_argon2()
             
         ph = argon2.PasswordHasher()
         try:
