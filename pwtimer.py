@@ -18,7 +18,7 @@ DEFAULT_ARGON2_TYPE = 'd'
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, # keep epilog newlines
-        description="Password Typing Trainer", # TODO: more detailes
+        description="Passphrase Typing Trainer", # TODO: more detailes
         epilog="""Examples:
 # Run standard trainer:
   ./pwtimer.py
@@ -126,7 +126,7 @@ def load_from_json(filepath, requested_entry_name):
     return entry.get("algo"), entry.get("value")
 
 # MARK: Argon2
-# to lazy import argon2 module
+# To lazily import argon2 module
 _argon2_module = None
 def get_argon2():
     """Lazily imports and returns the argon2 PasswordHasher. 
@@ -161,6 +161,7 @@ def hash_password(plain_pw, args):
         type=type_map[args.hash_type]
     )
     print("[*] Hashing password with Argon2... please wait.")
+    # TODO: time.time() stopwatch here as well.
     return "argon2", ph.hash(plain_pw)
 
 def verify_password(attempt, stored_algo, stored_value):
@@ -360,17 +361,24 @@ def get_initial_password(no_gui):
             print("GUI closed without saving a password. Exiting.")
             sys.exit(0)
         return pwd
+    except (ImportError, ModuleNotFoundError) as e: # not sure which errors to catch
+        print(f"\n[Notice: GTK3 / PyGObject dependencies not found ({e})]", file=sys.stderr)
+        # print("Install either python-gobject gtk3 via pacman, python3-gi libgtk-3-0 via apt, python3-gobject gtk3 via dnf.", file=sys.stderr)
+        print("Installing GIMP might fix it.", file=sys.stderr)
+        print("Use -c/--no-gui to disable this message.", file=sys.stderr)
+        print("Falling back to CLI mode...\n", file=sys.stderr)
+        return read_password_cli()
     except Exception as e:
-        # Catches ModuleNotFoundError for 'gi', display server issues, etc.
-        print(f"[GUI Unavailable: {e}]")
-        print("Falling back to CLI mode...\n")
+        # Catches display server issues (e.g., running over SSH without X11 forwarding, Wayland errors)
+        print(f"\n[GUI Unavailable: {e}]", file=sys.stderr)
+        print("Falling back to CLI mode...\n", file=sys.stderr)
         return read_password_cli()
 
 # --- Main Logic ---
 
 def main():
     args = parse_args()
-    print("=== Password Typing Trainer ===")
+    print("=== Passphrase Typing Trainer ===")
     
     stored_algo = None
     stored_value = None
