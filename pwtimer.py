@@ -8,30 +8,48 @@ import json
 import argparse
 
 # Default Argon2 settings
+DEFAULT_FILENAME='default_pwtimer.json'
+DEFAULT_ENTRY_NAME='default'
 DEFAULT_ARGON2_TIME = 3
 DEFAULT_ARGON2_MEMORY = 1 << 16 # 64 MB
 DEFAULT_ARGON2_PARALLELISM = 4
 DEFAULT_ARGON2_TYPE = 'd'
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Password Typing Trainer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, # keep epilog newlines
+        description="Password Typing Trainer", # TODO: more detailes
+        epilog="""Examples:
+# Run standard trainer:
+  ./pwtimer.py
+
+# Save a password for trumposcord in a file:
+  ./pwtimer.py -s pwtimerPasswords.json -n trumposcord
+
+# Use saved password:
+  ./pwtimer.py -r pwtimerPasswords.json -n trumposcord
+
+# Save a passwords to default 'default_pwtimer.json' and use custom Argon2 options:
+  ./pwtimer.py -s -n "main google" -m 262144 -t 10
+"""
+    )
     
     parser.add_argument("-c", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
     
     # Storage arguments
-    parser.add_argument("-s", "--save", nargs='?', const="default_pwtimer.json", metavar="FILE", help="Save the setup password to the specified JSON file")
-    parser.add_argument("-r", "--read", nargs='?', const="default_pwtimer.json", metavar="FILE", help="Read target password from the specified JSON file instead of asking")
-    parser.add_argument("-n", "--entry-name", default="default", help="Name of the password entry in the JSON file")
+    parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file (FILE defaults to '{DEFAULT_FILENAME}')")
+    parser.add_argument("-r", "--read", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Read target password from the specified JSON file instead of asking (FILE defaults to '{DEFAULT_FILENAME}')")
+    parser.add_argument("-n", "--entry-name", default=DEFAULT_ENTRY_NAME, help=f"Name of the password entry in the JSON file (default: '{DEFAULT_ENTRY_NAME}')")
     
     # Hashing algorithms and parameters
     parser.add_argument("-P", "--plain", action="store_true", help="Store password in plain text")
     parser.add_argument("--i-understand-risks", action="store_true", help="Guardrail flag when using --plain")
     
     # Argon2 specific parameters
-    parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, help="Argon2 time cost")
-    parser.add_argument("-m", "--memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY, help="Argon2 memory cost")
-    parser.add_argument("-p", "--parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM, help="Argon2 parallelism")
-    parser.add_argument("-T", "--hash-type", choices=['id', 'i', 'd'], default=DEFAULT_ARGON2_TYPE, help="Argon2 hash type")
+    parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, help=f"Argon2 time cost (default: {DEFAULT_ARGON2_TIME})")
+    parser.add_argument("-m", "--memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY, help=f"Argon2 memory cost (default: {DEFAULT_ARGON2_MEMORY})")
+    parser.add_argument("-p", "--parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM, help=f"Argon2 parallelism (default: {DEFAULT_ARGON2_PARALLELISM})")
+    parser.add_argument("-T", "--hash-type", choices=['id', 'i', 'd'], default=DEFAULT_ARGON2_TYPE, help=f"Argon2 hash type (default: {DEFAULT_ARGON2_TYPE})")
     
     args = parser.parse_args()
     
@@ -41,7 +59,22 @@ def parse_args():
         
     if args.save and args.read:
         parser.error("You cannot use --save and --read at the same time.")
-    
+
+    # Dependency validation
+    hash_modified = (
+        args.time_cost != DEFAULT_ARGON2_TIME or
+        args.memory_cost != DEFAULT_ARGON2_MEMORY or
+        args.parallelism != DEFAULT_ARGON2_PARALLELISM or
+        args.hash_type != DEFAULT_ARGON2_TYPE or
+        args.plain
+    )
+
+    if hash_modified and not args.save:
+        parser.error("Hashing parameters are pointless without --save.")
+
+    if args.entry_name != DEFAULT_ENTRY_NAME and not (args.save or args.read):
+        parser.error("specifying entry name is pointless without --save or --read.")
+
     return args
 
 def save_to_json(filepath, entry_name, algo, value):
