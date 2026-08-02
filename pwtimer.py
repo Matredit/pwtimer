@@ -7,48 +7,97 @@ import time
 import json
 import argparse
 
-# Default Argon2 settings
+BIN_NAME='pwtimer' # ln -s ~/wherever/pwtimer.py ~/.local/bin/pwtimer
 DEFAULT_FILENAME='default_pwtimer.json'
 DEFAULT_ENTRY_NAME='default'
 DEFAULT_ARGON2_TIME = 3
-DEFAULT_ARGON2_MEMORY = 1 << 16 # 64 MB
+DEFAULT_ARGON2_MEMORY_MIB = 64 # MiB (Converted to KiB internally)
 DEFAULT_ARGON2_PARALLELISM = 4
 DEFAULT_ARGON2_TYPE = 'd'
 
+class ANSI:
+    # --- Resets ---
+    RESET = "\033[0m"
+    RESET_FG = "\033[39m"
+
+    # --- Styles ---
+    BOLD = "\033[1m"
+    # DIM = "\033[2m"
+    # ITALIC = "\033[3m"
+    # UNDERLINE = "\033[4m"
+
+    # --- Standard Foreground (Text) Colors ---
+    # BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    # WHITE = "\033[37m"
+
+    # --- Bright/Bold Foreground Colors ---
+    # BRIGHT_BLACK = "\033[90m"  # Often used as Dark Gray
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    # BRIGHT_YELLOW = "\033[93m"
+    # BRIGHT_BLUE = "\033[94m"
+    # BRIGHT_MAGENTA = "\033[95m"
+    # BRIGHT_CYAN = "\033[96m"
+    # BRIGHT_WHITE = "\033[97m"
+
+    # --- Background Colors ---
+    # BG_BLACK = "\033[40m"
+    # BG_RED = "\033[41m"
+    # BG_GREEN = "\033[42m"
+    # BG_YELLOW = "\033[43m"
+    # BG_BLUE = "\033[44m"
+    # BG_MAGENTA = "\033[45m"
+    # BG_CYAN = "\033[46m"
+    # BG_WHITE = "\033[47m"
+
+# MARK: Flags
+
 def parse_args():
     parser = argparse.ArgumentParser(
+        # color=False, # which one looks better?
         formatter_class=argparse.RawDescriptionHelpFormatter, # keep epilog newlines
-        description="Passphrase Typing Trainer", # TODO: more detailes
-        epilog="""Examples:
-# Run standard trainer:
-  ./pwtimer.py
+        # TODO: more detailes
+        description=f"""{ANSI.BOLD}Passphrase Typing Trainer{ANSI.RESET}
 
-# Save a password for trumposcord in a file:
-  ./pwtimer.py -s pwtimerPasswords.json -n trumposcord
-
+{ANSI.BOLD}{ANSI.YELLOW}FILE{ANSI.RESET} defaults to 'default_pwtimer.json'
+""",
+        epilog=f"""{ANSI.BOLD}{ANSI.BLUE}examples:{ANSI.RESET}
+# Save a password in a file:
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
 # Use saved password:
-  ./pwtimer.py -r pwtimerPasswords.json -n trumposcord
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-r {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
+# Save a passwords to {DEFAULT_FILENAME} and set Argon2 options to 512MiB, 8 iterations, 6 threads:
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s -n {ANSI.YELLOW}"myKeePass" {ANSI.GREEN}-m {ANSI.YELLOW}512 {ANSI.GREEN}-t {ANSI.YELLOW}8 {ANSI.GREEN}-p {ANSI.YELLOW}6{ANSI.RESET}
 
-# Save a passwords to default 'default_pwtimer.json' and use custom Argon2 options:
-  ./pwtimer.py -s -n "main google" -m 262144 -t 10
-"""
+During --read if a file has single entry, --entry-name can be omitted.
+File will always be stored in your current working directory unless full path is specified.
+""",
     )
     
-    parser.add_argument("-c", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
+    parser.add_argument("-C", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
+    
+    # Utilities
+    parser.add_argument("-l", "--list", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"List all password entries in the specified JSON file and exit")
     
     # Storage arguments
-    parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file (FILE defaults to '{DEFAULT_FILENAME}')")
-    parser.add_argument("-r", "--read", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Read target password from the specified JSON file instead of asking (FILE defaults to '{DEFAULT_FILENAME}')")
+    parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file")
+    parser.add_argument("-r", "--read", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Read target password from the specified JSON file instead of asking")
     parser.add_argument("-n", "--entry-name", default=DEFAULT_ENTRY_NAME, help=f"Name of the password entry in the JSON file (default: '{DEFAULT_ENTRY_NAME}')")
     
     # Hashing algorithms and parameters
     parser.add_argument("-P", "--plain", action="store_true", help="Store password in plain text")
-    parser.add_argument("--i-understand-risks", action="store_true", help="Guardrail flag when using --plain")
+    parser.add_argument("--i-understand-risks", action="store_true", help="Guardrail flag when using --plain") # --i-am-slavik, when set must error withotu -P (slavik wouldn't hash)
     
     # Argon2 specific parameters
-    parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, help=f"Argon2 time cost (default: {DEFAULT_ARGON2_TIME})")
-    parser.add_argument("-m", "--memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY, help=f"Argon2 memory cost (default: {DEFAULT_ARGON2_MEMORY})")
-    parser.add_argument("-p", "--parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM, help=f"Argon2 parallelism (default: {DEFAULT_ARGON2_PARALLELISM})")
+    parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, metavar="ITERATIONS", help=f"Argon2 time cost (default: {DEFAULT_ARGON2_TIME})")
+    parser.add_argument("-m", "--memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY_MIB, metavar="MiB", help=f"Argon2 memory cost (in MiB) (default: {DEFAULT_ARGON2_MEMORY_MIB})")
+    parser.add_argument("-p", "--parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM, metavar="THREADS", help=f"Argon2 parallelism (default: {DEFAULT_ARGON2_PARALLELISM})")
     parser.add_argument("-T", "--hash-type", choices=['id', 'i', 'd'], default=DEFAULT_ARGON2_TYPE, help=f"Argon2 hash type (default: {DEFAULT_ARGON2_TYPE})")
     
     args = parser.parse_args()
@@ -63,10 +112,10 @@ def parse_args():
     # Dependency validation
     hash_modified = (
         args.time_cost != DEFAULT_ARGON2_TIME or
-        args.memory_cost != DEFAULT_ARGON2_MEMORY or
+        args.memory_cost != DEFAULT_ARGON2_MEMORY_MIB or
         args.parallelism != DEFAULT_ARGON2_PARALLELISM or
         args.hash_type != DEFAULT_ARGON2_TYPE or
-        args.plain
+        args.plain # TODO: check for -P with -m and others
     )
 
     if hash_modified and not args.save:
@@ -76,6 +125,34 @@ def parse_args():
         parser.error("specifying entry name is pointless without --save or --read.")
 
     return args
+
+# MARK: Utilities
+
+def util_list_entries(filepath):
+    """Utility to list all entries in a JSON file and exit."""
+    if not os.path.exists(filepath):
+        print(f"Error: File '{filepath}' does not exist.")
+        sys.exit(1)
+        
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        print(f"Error: File '{filepath}' is not valid JSON or is corrupted.")
+        sys.exit(1)
+        
+    if not data:
+        print(f"File '{filepath}' is empty.")
+        sys.exit(0)
+        
+    print(f"[*] Password entries found in '{filepath}':")
+    for key, val in data.items():
+        algo = val.get("algo", "unknown")
+        print(f"  - {key} (algo: {algo})")
+    
+    sys.exit(0)
+
+# MARK: Storage
 
 def save_to_json(filepath, entry_name, algo, value):
     data = {}
@@ -156,7 +233,7 @@ def hash_password(plain_pw, args):
     
     ph = argon2.PasswordHasher(
         time_cost=args.time_cost,
-        memory_cost=args.memory_cost,
+        memory_cost=args.memory_cost * 1024, # Convert MiB to KiB
         parallelism=args.parallelism,
         type=type_map[args.hash_type]
     )
@@ -365,7 +442,7 @@ def get_initial_password(no_gui):
         print(f"\n[Notice: GTK3 / PyGObject dependencies not found ({e})]", file=sys.stderr)
         # print("Install either python-gobject gtk3 via pacman, python3-gi libgtk-3-0 via apt, python3-gobject gtk3 via dnf.", file=sys.stderr)
         print("Installing GIMP might fix it.", file=sys.stderr)
-        print("Use -c/--no-gui to disable this message.", file=sys.stderr)
+        print("Use -C/--no-gui to disable this message.", file=sys.stderr)
         print("Falling back to CLI mode...\n", file=sys.stderr)
         return read_password_cli()
     except Exception as e:
@@ -378,6 +455,11 @@ def get_initial_password(no_gui):
 
 def main():
     args = parse_args()
+    
+    # Execute utility router pattern if applicable
+    if args.list:
+        util_list_entries(args.list)
+
     print("=== Passphrase Typing Trainer ===")
     
     stored_algo = None
@@ -428,12 +510,18 @@ def main():
                 print("  -> Skipped.\n")
                 continue
 
+            hash_time_str = ""
+            
             # Performance optimization: if we already verified the password once, 
             # we just compare raw strings instead of running Argon2 every time.
             if cached_plain_pw is not None:
                 is_correct = (attempt_pw == cached_plain_pw)
             else:
+                verify_start = time.time()
                 is_correct = verify_password(attempt_pw, stored_algo, stored_value)
+                verify_time = time.time() - verify_start
+                hash_time_str = f" | Hash check: {verify_time:.3f}s"
+                
                 if is_correct:
                     # Cache it for all subsequent attempts
                     cached_plain_pw = attempt_pw
@@ -449,11 +537,11 @@ def main():
                 
             # Evaluate
             if is_correct:
-                status = "\033[92mCORRECT\033[0m" # Green text
+                status = f"{ANSI.BRIGHT_GREEN}CORRECT{ANSI.RESET}"
             else:
-                status = "\033[91mINCORRECT\033[0m" # Red text
+                status = f"{ANSI.BRIGHT_RED}INCORRECT{ANSI.RESET}"
                 
-            print(f"  -> {status} | Time: {time_taken:.3f}s | Chars: {char_count} | CPS: {cps:.0f} | WPM: {wpm:.0f}\n")
+            print(f"  -> {status} | Time: {time_taken:.3f}s | Chars: {char_count} | CPS: {cps:.0f} | WPM: {wpm:.0f}{hash_time_str}\n")
             
     except KeyboardInterrupt:
         print("\n\nExiting.")
