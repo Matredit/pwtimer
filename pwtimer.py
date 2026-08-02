@@ -92,6 +92,7 @@ def load_from_json(filepath, requested_entry_name):
     entry = data[entry_name]
     return entry.get("algo"), entry.get("value")
 
+# MARK: Argon2
 # to lazy import argon2 module
 _argon2_module = None
 def get_argon2():
@@ -148,6 +149,7 @@ def verify_password(attempt, stored_algo, stored_value):
         print(f"Error: Unknown algorithm '{stored_algo}' in save file.")
         sys.exit(1)
 
+# MARK: Input
 # --- CLI and GUI Input Functions ---
 
 def read_password(prompt="Password: ", track_time=False):
@@ -220,6 +222,7 @@ def read_password_cli():
         else:
             print("Passwords do not match or are empty. Try again.\n")
 
+# MARK: GUI
 def read_password_gui():
     """
     GTK3 implementation for initial password setup.
@@ -306,6 +309,8 @@ def read_password_gui():
 
     # If the user closed the window without submitting, result_pwd will be empty
     return result_pwd[0] if result_pwd else None
+
+# MARK: Main Logic
 
 def get_initial_password(no_gui):
     """
