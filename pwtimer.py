@@ -1,8 +1,167 @@
 #!/usr/bin/env python3
 import sys
+import os
 import tty
 import termios
 import time
+import json
+import argparse
+
+# Default Argon2 settings
+DEFAULT_ARGON2_TIME = 3
+DEFAULT_ARGON2_MEMORY = 1 << 16 # 64 MB
+DEFAULT_ARGON2_PARALLELISM = 4
+DEFAULT_ARGON2_TYPE = 'd'
+
+# # to lazy import argon2 module
+# _argon2_module = None
+# def get_argon2():
+#     """Lazily imports and returns the argon2 PasswordHasher. 
+#     Exits cleanly if missing and plaintext mode wasn't requested.
+#     """
+#     global _argon2_module
+#     if _argon2_module is not None:
+#         return _argon2_module
+#     try:
+#         import argon2
+#         _argon2_module = argon2
+#         return _argon2_module
+#     except ImportError:
+#         print("\nError: The Argon2 library is not installed.", file=sys.stderr)
+#         print("Install either python-argon2-cffi via pacman, python3-argon2 via apt/dnf, argon2-cffi via pip.", file=sys.stderr)
+#         print("Or use -P/--plain to store without hashing.", file=sys.stderr)
+#         sys.exit(1)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Password Typing Trainer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    
+    parser.add_argument("-c", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
+    
+    # Storage arguments
+    parser.add_argument("-s", "--save", nargs='?', const="default_pwtimer.json", metavar="FILE", help="Save the setup password to the specified JSON file")
+    parser.add_argument("-r", "--read", nargs='?', const="default_pwtimer.json", metavar="FILE", help="Read target password from the specified JSON file instead of asking")
+    parser.add_argument("-n", "--entry-name", default="default", help="Name of the password entry in the JSON file")
+    
+    # Hashing algorithms and parameters
+    parser.add_argument("-P", "--plain", action="store_true", help="Store password in plain text")
+    parser.add_argument("--i-understand-risks", action="store_true", help="Guardrail flag when using --plain")
+    
+    # Argon2 specific parameters
+    parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, help="Argon2 time cost")
+    parser.add_argument("-m", "--memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY, help="Argon2 memory cost")
+    parser.add_argument("-p", "--parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM, help="Argon2 parallelism")
+    parser.add_argument("-T", "--hash-type", choices=['id', 'i', 'd'], default=DEFAULT_ARGON2_TYPE, help="Argon2 hash type")
+    
+    args = parser.parse_args()
+    
+    # Guardrails validation
+    if args.plain and not args.i_understand_risks:
+        parser.error("--plain can be used only with --i-understand-risks guardrail.")
+        
+    if args.save and args.read:
+        parser.error("You cannot use --save and --read at the same time.")
+    
+    return args
+
+def save_to_json(filepath, entry_name, algo, value):
+    data = {}
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            pass # File exists but is empty or corrupt; we will overwrite/append
+
+    data[entry_name] = {
+        "algo": algo,
+        "value": value
+    }
+    
+    # Ensure secure file permissions (600)
+    # create file if not exists with 600, then write
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    mode = 0o600
+    with os.fdopen(os.open(filepath, flags, mode), 'w') as f:
+        json.dump(data, f, indent=4)
+    print(f"[+] Saved entry '{entry_name}' to {filepath}")
+
+def load_from_json(filepath, requested_entry_name):
+    if not os.path.exists(filepath):
+        print(f"Error: File '{filepath}' does not exist.")
+        sys.exit(1)
+        
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+        
+    if not data:
+        print(f"Error: File '{filepath}' is empty.")
+        sys.exit(1)
+        
+    # Auto-select if there is exactly 1 entry and user didn't explicitly change the default
+    if len(data) == 1 and requested_entry_name == "default" and "default" not in data:
+        entry_name = list(data.keys())[0]
+        print(f"[*] Auto-selected single entry: '{entry_name}'")
+    else:
+        entry_name = requested_entry_name
+        
+    if entry_name not in data:
+        print(f"Error: Entry '{entry_name}' not found in {filepath}.")
+        sys.exit(1)
+        
+    entry = data[entry_name]
+    return entry.get("algo"), entry.get("value")
+
+def hash_password(plain_pw, args):
+    """Hashes the password based on selected algorithm (or returns plaintext)."""
+    if args.plain:
+        return "plain", plain_pw
+
+    # TODO: use get_argon2()
+    try:
+        import argon2
+    except ImportError:
+        print("\nError: python-argon2-cffi is not installed.")
+        print("Install it via your package manager (e.g., sudo pacman -S python-argon2-cffi)")
+        print("Or use -P/--plain (with --i-understand-risks) to store without hashing.")
+        sys.exit(1)
+        
+    type_map = {'id': argon2.Type.ID, 'i': argon2.Type.I, 'd': argon2.Type.D}
+    
+    ph = argon2.PasswordHasher(
+        time_cost=args.time_cost,
+        memory_cost=args.memory_cost,
+        parallelism=args.parallelism,
+        type=type_map[args.hash_type]
+    )
+    print("[*] Hashing password with Argon2... please wait.")
+    return "argon2", ph.hash(plain_pw)
+
+def verify_password(attempt, stored_algo, stored_value):
+    """Verifies a password attempt against the stored value."""
+    if stored_algo == "plain":
+        return attempt == stored_value
+        
+    elif stored_algo == "argon2":
+        # TODO: use get_argon2()
+        try:
+            import argon2
+        except ImportError:
+            print("\nError: Attempting to verify Argon2 hash, but python-argon2-cffi is not installed.")
+            print("Please install it to read this file.")
+            sys.exit(1)
+            
+        ph = argon2.PasswordHasher()
+        try:
+            ph.verify(stored_value, attempt)
+            return True
+        except argon2.exceptions.VerifyMismatchError:
+            return False
+            
+    else:
+        print(f"Error: Unknown algorithm '{stored_algo}' in save file.")
+        sys.exit(1)
+
+# --- CLI and GUI Input Functions ---
 
 def read_password(prompt="Password: ", track_time=False):
     """
@@ -161,12 +320,12 @@ def read_password_gui():
     # If the user closed the window without submitting, result_pwd will be empty
     return result_pwd[0] if result_pwd else None
 
-def get_initial_password():
+def get_initial_password(no_gui):
     """
     Orchestrator to get the initial password. 
     Attempts GUI, falls back to CLI if args dictate or if dependencies are missing.
     """
-    if "-c" in sys.argv or "--no-gui" in sys.argv:
+    if no_gui:
         return read_password_cli()
     
     try:
@@ -182,11 +341,42 @@ def get_initial_password():
         print("Falling back to CLI mode...\n")
         return read_password_cli()
 
+# --- Main Logic ---
+
 def main():
+    args = parse_args()
     print("=== Password Typing Trainer ===")
     
-    # 1. Setup Phase
-    target_pw = get_initial_password()
+    stored_algo = None
+    stored_value = None
+    cached_plain_pw = None
+    
+    # 1. Setup / Load Phase
+    if args.read:
+        print(f"[*] Reading from {args.read}...")
+        stored_algo, stored_value = load_from_json(args.read, args.entry_name)
+        
+        # If it's plaintext, we can cache it immediately to skip checks later
+        if stored_algo == "plain":
+            cached_plain_pw = stored_value
+            
+        print("[+] Password loaded successfully.\n")
+        
+    else:
+        # Ask for password (GUI or CLI)
+        initial_plain_pw = get_initial_password(args.no_gui)
+        
+        if args.save:
+            algo, hashed_value = hash_password(initial_plain_pw, args)
+            save_to_json(args.save, args.entry_name, algo, hashed_value)
+            
+            # Since we just created it, we already know what it is! No need to hash later.
+            stored_algo = algo
+            stored_value = hashed_value
+            cached_plain_pw = initial_plain_pw 
+        else:
+            # Ephemeral mode
+            cached_plain_pw = initial_plain_pw
 
     # 2. Training Phase
     print("Let's begin!")
@@ -205,6 +395,16 @@ def main():
                 print("  -> Skipped.\n")
                 continue
 
+            # Performance optimization: if we already verified the password once, 
+            # we just compare raw strings instead of running Argon2 every time.
+            if cached_plain_pw is not None:
+                is_correct = (attempt_pw == cached_plain_pw)
+            else:
+                is_correct = verify_password(attempt_pw, stored_algo, stored_value)
+                if is_correct:
+                    # Cache it for all subsequent attempts
+                    cached_plain_pw = attempt_pw
+
             char_count = len(attempt_pw)
             
             # Calculate metrics
@@ -215,7 +415,7 @@ def main():
                 cps = wpm = 0.0
                 
             # Evaluate
-            if attempt_pw == target_pw:
+            if is_correct:
                 status = "\033[92mCORRECT\033[0m" # Green text
             else:
                 status = "\033[91mINCORRECT\033[0m" # Red text
