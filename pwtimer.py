@@ -60,7 +60,7 @@ class ANSI:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        # color=False, # which one looks better?
+        # color=False, # which one looks better? I'll have to purge ANSI from desc as well
         formatter_class=argparse.RawDescriptionHelpFormatter, # keep epilog newlines
         # TODO: more detailes
         description=f"""{ANSI.BOLD}Passphrase Typing Trainer{ANSI.RESET}
@@ -92,7 +92,7 @@ File will always be stored in your current working directory unless full path is
     
     # Hashing algorithms and parameters
     parser.add_argument("-P", "--plain", action="store_true", help="Store password in plain text")
-    parser.add_argument("--i-understand-risks", action="store_true", help="Guardrail flag when using --plain") # --i-am-slavik, when set must error withotu -P (slavik wouldn't hash)
+    parser.add_argument("--i-am-slavik", action="store_true", help="Guardrail flag when using --plain")
     
     # Argon2 specific parameters
     parser.add_argument("-t", "--time-cost", type=int, default=DEFAULT_ARGON2_TIME, metavar="ITERATIONS", help=f"Argon2 time cost (default: {DEFAULT_ARGON2_TIME})")
@@ -104,8 +104,11 @@ File will always be stored in your current working directory unless full path is
     
     # Guardrails validation
     if args.plain and not args.i_understand_risks:
-        parser.error("--plain can be used only with --i-understand-risks guardrail.")
-        
+        parser.error("--plain can be used only with --i-am-slavik guardrail.")
+
+    if args.i_am_slavik and not args.plain:
+        parser.error("Slavik wouldn't hash, use --plain")
+    
     if args.save and args.read:
         parser.error("You cannot use --save and --read at the same time.")
 
@@ -114,20 +117,22 @@ File will always be stored in your current working directory unless full path is
         args.time_cost != DEFAULT_ARGON2_TIME or
         args.memory_cost != DEFAULT_ARGON2_MEMORY_MIB or
         args.parallelism != DEFAULT_ARGON2_PARALLELISM or
-        args.hash_type != DEFAULT_ARGON2_TYPE or
-        args.plain # TODO: check for -P with -m and others
+        args.hash_type != DEFAULT_ARGON2_TYPE
     )
 
-    if hash_modified and not args.save:
+    if (hash_modified or args.plain) and not args.save:
         parser.error("Hashing parameters are pointless without --save.")
 
+    if hash_modified and args.plain:
+        parser.error("Hashing parameters are pointless in --plain.")
+
     if args.entry_name != DEFAULT_ENTRY_NAME and not (args.save or args.read):
-        parser.error("specifying entry name is pointless without --save or --read.")
+        parser.error("Specifying entry name is pointless without --save or --read.")
 
     return args
 
 # MARK: Utilities
-
+# TODO: benchmark to find best argon2 options
 def util_list_entries(filepath):
     """Utility to list all entries in a JSON file and exit."""
     if not os.path.exists(filepath):
@@ -237,9 +242,12 @@ def hash_password(plain_pw, args):
         parallelism=args.parallelism,
         type=type_map[args.hash_type]
     )
-    print("[*] Hashing password with Argon2... please wait.")
-    # TODO: time.time() stopwatch here as well.
-    return "argon2", ph.hash(plain_pw)
+    print("[*] Hashing password with Argon2...")
+    hash_start = time.time()
+    hash_result = ph.hash(plain_pw)
+    hash_time = time.time() - hash_start
+    print(f"[+] Hash completed in {hash_time:.3f}s")
+    return "argon2", hash_result
 
 def verify_password(attempt, stored_algo, stored_value):
     """Verifies a password attempt against the stored value."""
