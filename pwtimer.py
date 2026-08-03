@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 import sys
 import os
@@ -139,7 +139,6 @@ File will always be stored in your current working directory unless full path is
     return args
 
 # MARK: Utilities
-# TODO: check latest version
 # TODO: benchmark to find best argon2 options
 def util_list_entries(filepath, show_hashes):
     """Utility to list all entries in a JSON file and exit."""
