@@ -77,7 +77,8 @@ def parse_args():
 # List password entries with their values from pwtimers.json:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-Hl {ANSI.YELLOW}pwtimers.json{ANSI.RESET}
   
-During --read if a file has single entry, --entry-name can be omitted.
+During --read, if a file has single entry, --entry-name can be omitted.
+During --save, if entry with the same name already exists, it will be overwritten.
 File will always be stored in your current working directory unless full path is specified.
 """,
     )
@@ -109,7 +110,7 @@ File will always be stored in your current working directory unless full path is
     if args.plain and not args.i_am_slavik:
         parser.error("--plain can be used only with --i-am-slavik guardrail.")
 
-    if args.i_am_slavik and not args.plain:
+    if args.save and args.i_am_slavik and not args.plain:
         parser.error("Slavik wouldn't hash, use --plain")
     
     if args.save and args.read:
