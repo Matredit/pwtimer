@@ -11,9 +11,9 @@ BIN_NAME='pwtimer' # ln -s ~/wherever/pwtimer.py ~/.local/bin/pwtimer
 DEFAULT_FILENAME='default_pwtimer.json'
 DEFAULT_ENTRY_NAME='default'
 DEFAULT_ARGON2_TIME = 3
-DEFAULT_ARGON2_MEMORY_MIB = 64 # MiB (Converted to KiB internally)
+DEFAULT_ARGON2_MEMORY_MIB = 512 # MiB (Converted to KiB internally)
 DEFAULT_ARGON2_PARALLELISM = 4
-DEFAULT_ARGON2_TYPE = 'd'
+DEFAULT_ARGON2_TYPE = 'd' # not 'id' because it's not a server
 
 class ANSI:
     # --- Resets ---
@@ -74,7 +74,9 @@ def parse_args():
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-r {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
 # Save a passwords to {DEFAULT_FILENAME} and set Argon2 options to 512MiB, 8 iterations, 6 threads:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s -n {ANSI.YELLOW}"myKeePass" {ANSI.GREEN}-m {ANSI.YELLOW}512 {ANSI.GREEN}-t {ANSI.YELLOW}8 {ANSI.GREEN}-p {ANSI.YELLOW}6{ANSI.RESET}
-
+# List password entries with their values from {DEFAULT_FILENAME}:
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-Hl{ANSI.RESET}
+  
 During --read if a file has single entry, --entry-name can be omitted.
 File will always be stored in your current working directory unless full path is specified.
 """,
@@ -84,6 +86,7 @@ File will always be stored in your current working directory unless full path is
     
     # Utilities
     parser.add_argument("-l", "--list", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"List all password entries in the specified JSON file and exit")
+    parser.add_argument("-H", "--show-hashes", action="store_true", help="Make --list show passwords")
     
     # Storage arguments
     parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file")
@@ -133,7 +136,7 @@ File will always be stored in your current working directory unless full path is
 
 # MARK: Utilities
 # TODO: benchmark to find best argon2 options
-def util_list_entries(filepath):
+def util_list_entries(filepath, show_hashes):
     """Utility to list all entries in a JSON file and exit."""
     if not os.path.exists(filepath):
         print(f"Error: File '{filepath}' does not exist.")
@@ -152,8 +155,14 @@ def util_list_entries(filepath):
         
     print(f"[*] Password entries found in '{filepath}':")
     for key, val in data.items():
-        algo = val.get("algo", "unknown")
-        print(f"  - {key} (algo: {algo})")
+        entry_str = f"  - {key}"
+        if show_hashes:
+            value = val.get("value")
+            entry_str += f" (value: {value})"
+        else:
+            algo = val.get("algo", "unknown")
+            entry_str += f" (algo: {algo})"
+        print(entry_str)
     
     sys.exit(0)
 
@@ -466,7 +475,7 @@ def main():
     
     # Execute utility router pattern if applicable
     if args.list:
-        util_list_entries(args.list)
+        util_list_entries(args.list, args.show_hashes)
 
     print("=== Passphrase Typing Trainer ===")
     
