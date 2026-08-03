@@ -136,6 +136,7 @@ File will always be stored in your current working directory unless full path is
     return args
 
 # MARK: Utilities
+# TODO: check latest version
 # TODO: benchmark to find best argon2 options
 def util_list_entries(filepath, show_hashes):
     """Utility to list all entries in a JSON file and exit."""
@@ -346,15 +347,14 @@ def read_password(prompt="Password: ", track_time=False):
     return "".join(chars), elapsed
 
 def read_password_cli():
-    # TODO: fix messages
     """CLI implementation for initial password setup."""
-    print("Let's set up the password for this training session.")
+    print("Let's set up the password.")
     while True:
         target_pw, _ = read_password("Enter target password: ", track_time=False)
         confirm_pw, _ = read_password("Confirm password: ", track_time=False)
         
         if target_pw == confirm_pw and len(target_pw) > 0:
-            print("Password stored in memory.\n")
+            print("Password set.\n")
             return target_pw
         else:
             print("Passwords do not match or are empty. Try again.\n")
