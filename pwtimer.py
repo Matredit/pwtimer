@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+__version__ = "3.0.0"
+
 import sys
 import os
 import tty
@@ -88,6 +90,7 @@ File will always be stored in your current working directory unless full path is
     # Utilities
     parser.add_argument("-l", "--list", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"List all password entries in the specified JSON file and exit")
     parser.add_argument("-H", "--show-hashes", action="store_true", help="Make --list show passwords")
+    parser.add_argument("-v", "--version", action="store_true", help="Check for updates and exit")
     
     # Storage arguments
     parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file")
@@ -166,6 +169,35 @@ def util_list_entries(filepath, show_hashes):
             entry_str += f" (algo: {algo})"
         print(entry_str)
     
+    sys.exit(0)
+
+def check_for_updates():
+    """Utility to check if there's new script version and exit."""
+    print(f"version: {__version__}\n")
+    import urllib.request
+    import re
+
+    script_url = "https://raw.githubusercontent.com/Matredit/pwtimer/master/pwtimer.py"
+
+    try:
+        req = urllib.request.Request(script_url, headers={'User-Agent': 'python-cli-app'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            remote_code = response.read().decode('utf-8')
+            
+            # Search for __version__ = "X.Y.Z" in the remote script
+            match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', remote_code, re.MULTILINE)
+            
+            if match:
+                latest_version = match.group(1)
+                if latest_version != __version__:
+                    print(f"Newer version available! ({__version__} -> {latest_version})")
+                    print(f"Download the latest version at: https://github.com/Matredit/pwtimer")
+                else:
+                    print("You are using the latest version.")
+            else:
+                print("Error: could not detect remote version.")
+    except Exception:
+        print("Error: could not check for updates.")
     sys.exit(0)
 
 # MARK: Storage
@@ -485,6 +517,8 @@ def main():
     # Execute utility router pattern if applicable
     if args.list:
         util_list_entries(args.list, args.show_hashes)
+    if args.version:
+        check_for_updates()
 
     print("=== Passphrase Typing Trainer ===")
     
