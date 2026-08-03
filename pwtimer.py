@@ -65,7 +65,7 @@ def parse_args():
         # TODO: more detailes
         description=f"""{ANSI.BOLD}Passphrase Typing Trainer{ANSI.RESET}
 
-{ANSI.BOLD}{ANSI.YELLOW}FILE{ANSI.RESET} defaults to 'default_pwtimer.json'
+{ANSI.BOLD}{ANSI.YELLOW}FILE{ANSI.RESET} defaults to '{DEFAULT_FILENAME}'
 """,
         epilog=f"""{ANSI.BOLD}{ANSI.BLUE}examples:{ANSI.RESET}
 # Save a password in a file:
