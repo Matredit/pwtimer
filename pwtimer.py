@@ -82,7 +82,7 @@ File will always be stored in your current working directory unless full path is
 """,
     )
     
-    parser.add_argument("-C", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
+    parser.add_argument("-C", "-c", "--no-gui", action="store_true", help="Skip GUI for password setup and use CLI")
     
     # Utilities
     parser.add_argument("-l", "--list", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"List all password entries in the specified JSON file and exit")
