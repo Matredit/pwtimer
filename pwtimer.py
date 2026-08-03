@@ -72,10 +72,10 @@ def parse_args():
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
 # Use saved password:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-r {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
-# Save a passwords to {DEFAULT_FILENAME} and set Argon2 options to 512MiB, 8 iterations, 6 threads:
-  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s -n {ANSI.YELLOW}"myKeePass" {ANSI.GREEN}-m {ANSI.YELLOW}512 {ANSI.GREEN}-t {ANSI.YELLOW}8 {ANSI.GREEN}-p {ANSI.YELLOW}6{ANSI.RESET}
-# List password entries with their values from {DEFAULT_FILENAME}:
-  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-Hl{ANSI.RESET}
+# Save a passwords to {DEFAULT_FILENAME} and set Argon2 options to 1024MiB, 2 iterations:
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s -n {ANSI.YELLOW}"myKeePass" {ANSI.GREEN}-m {ANSI.YELLOW}1024 {ANSI.GREEN}-t {ANSI.YELLOW}2{ANSI.RESET}
+# List password entries with their values from pwtimers.json:
+  {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-Hl {ANSI.YELLOW}pwtimers.json{ANSI.RESET}
   
 During --read if a file has single entry, --entry-name can be omitted.
 File will always be stored in your current working directory unless full path is specified.
