@@ -154,7 +154,7 @@ def util_list_entries(filepath, show_hashes):
         print(f"File '{filepath}' is empty.")
         sys.exit(0)
         
-    print(f"[*] Password entries found in '{filepath}':")
+    print(f"[*] Password entries found in '{format_path(filepath)}':")
     for key, val in data.items():
         entry_str = f"  - {key}"
         if show_hashes:
@@ -168,6 +168,13 @@ def util_list_entries(filepath, show_hashes):
     sys.exit(0)
 
 # MARK: Storage
+def format_path(filepath):
+    """Converts a filepath to an absolute path with ~ shorthand if in home."""
+    abs_path = os.path.abspath(filepath)
+    home_dir = os.path.expanduser("~")
+    if abs_path.startswith(home_dir):
+        return "~" + abs_path[len(home_dir) :]
+    return abs_path
 
 def save_to_json(filepath, entry_name, algo, value):
     data = {}
@@ -189,7 +196,7 @@ def save_to_json(filepath, entry_name, algo, value):
     mode = 0o600
     with os.fdopen(os.open(filepath, flags, mode), 'w') as f:
         json.dump(data, f, indent=4)
-    print(f"[+] Saved entry '{entry_name}' to {filepath}")
+    print(f"[+] Saved entry '{entry_name}' to {format_path(filepath)}")
 
 def load_from_json(filepath, requested_entry_name):
     if not os.path.exists(filepath):
@@ -211,7 +218,7 @@ def load_from_json(filepath, requested_entry_name):
         entry_name = requested_entry_name
         
     if entry_name not in data:
-        print(f"Error: Entry '{entry_name}' not found in {filepath}.")
+        print(f"Error: Entry '{entry_name}' not found in {format_path(filepath)}.")
         sys.exit(1)
         
     entry = data[entry_name]
@@ -339,6 +346,7 @@ def read_password(prompt="Password: ", track_time=False):
     return "".join(chars), elapsed
 
 def read_password_cli():
+    # TODO: fix messages
     """CLI implementation for initial password setup."""
     print("Let's set up the password for this training session.")
     while True:
@@ -486,7 +494,7 @@ def main():
     
     # 1. Setup / Load Phase
     if args.read:
-        print(f"[*] Reading from {args.read}...")
+        print(f"[*] Reading from {format_path(args.read)}...")
         stored_algo, stored_value = load_from_json(args.read, args.entry_name)
         
         # If it's plaintext, we can cache it immediately to skip checks later
