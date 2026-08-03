@@ -106,7 +106,7 @@ File will always be stored in your current working directory unless full path is
     args = parser.parse_args()
     
     # Guardrails validation
-    if args.plain and not args.i_understand_risks:
+    if args.plain and not args.i_am_slavik:
         parser.error("--plain can be used only with --i-am-slavik guardrail.")
 
     if args.i_am_slavik and not args.plain:
