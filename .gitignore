@@ -1,4 +1,4 @@
-*
 *.json
 *pwtimer*.json
 !pwtimer.py
+*test*
