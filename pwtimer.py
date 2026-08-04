@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-__version__ = "3.1.1"
+__version__ = "3.1.2"
 
 import sys
 import os
@@ -82,6 +82,8 @@ def parse_args():
 During --read, if a file has single entry, --entry-name can be omitted.
 During --save, if entry with the same name already exists, it will be overwritten.
 File will always be stored in your current working directory unless full path is specified.
+
+Note: Your passphrase stays in RAM while this app is open. Don't leave it idle or use it under heavy RAM usage.
 """,
     )
     
@@ -486,6 +488,7 @@ def read_password_gui():
 # TODO: store SHA256 hash for password caching instead of plain text
 # TODO: ctypes memory zeroing and locking
 # TODO: handle termination signals
+# TODO: afk check to remove password from cache
 def get_initial_password(no_gui):
     """
     Orchestrator to get the initial password. 
