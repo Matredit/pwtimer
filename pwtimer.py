@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-__version__ = "3.1.0"
+__version__ = "3.1.1"
 
 import sys
 import os
@@ -59,7 +59,7 @@ class ANSI:
     # BG_WHITE = "\033[47m"
 
 # MARK: Flags
-
+# TODO: filepath position shouldn't be tied to -s -r -l, user should be able to do "-rn name file" or "-lH file"
 def parse_args():
     parser = argparse.ArgumentParser(
         # color=False, # which one looks better? I'll have to purge ANSI from desc as well
@@ -74,7 +74,7 @@ def parse_args():
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
 # Use saved password:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-r {ANSI.YELLOW}pwtimerPasswords.json {ANSI.GREEN}-n {ANSI.YELLOW}myPassword{ANSI.RESET}
-# Save a passwords to {DEFAULT_FILENAME} and set Argon2 options to 1024MiB, 2 iterations:
+# Save a password to {DEFAULT_FILENAME} and set Argon2 options to 1024MiB, 2 iterations:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-s -n {ANSI.YELLOW}"myKeePass" {ANSI.GREEN}-m {ANSI.YELLOW}1024 {ANSI.GREEN}-t {ANSI.YELLOW}2{ANSI.RESET}
 # List password entries with their values from pwtimers.json:
   {ANSI.BOLD}{ANSI.MAGENTA}{BIN_NAME} {ANSI.GREEN}-Hl {ANSI.YELLOW}pwtimers.json{ANSI.RESET}
@@ -90,7 +90,8 @@ File will always be stored in your current working directory unless full path is
     # Utilities
     parser.add_argument("-l", "--list", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"List all password entries in the specified JSON file and exit")
     parser.add_argument("-H", "--show-hashes", action="store_true", help="Make --list show passwords")
-    parser.add_argument("-v", "--version", action="store_true", help="Check for updates and exit")
+    parser.add_argument("-v", "--version", action="store_true", help="Output version and exit")
+    parser.add_argument("-U", "--check-update", action="store_true", help="Check for updates and exit")
     
     # Storage arguments
     parser.add_argument("-s", "--save", nargs='?', const=DEFAULT_FILENAME, metavar="FILE", help=f"Save the setup password to the specified JSON file")
@@ -172,7 +173,6 @@ def util_list_entries(filepath, show_hashes):
 
 def check_for_updates():
     """Utility to check if there's new script version and exit."""
-    print(f"version: {__version__}\n")
     import urllib.request
     import re
 
@@ -197,6 +197,10 @@ def check_for_updates():
                 print("Error: could not detect remote version.")
     except Exception:
         print("Error: could not check for updates.")
+    sys.exit(0)
+
+def print_version():
+    print(f"{BIN_NAME} v{__version__}")
     sys.exit(0)
 
 # MARK: Storage
@@ -319,7 +323,7 @@ def verify_password(attempt, stored_algo, stored_value):
 
 # MARK: Input
 # --- CLI and GUI Input Functions ---
-
+# TODO: savely ignore arrow keys and other werid keys while typing
 def read_password(prompt="Password: ", track_time=False):
     """
     Reads a password character by character in CLI. 
@@ -479,7 +483,9 @@ def read_password_gui():
     return result_pwd[0] if result_pwd else None
 
 # MARK: Main Logic
-
+# TODO: store SHA256 hash for password caching instead of plain text
+# TODO: ctypes memory zeroing and locking
+# TODO: handle termination signals
 def get_initial_password(no_gui):
     """
     Orchestrator to get the initial password. 
@@ -516,8 +522,10 @@ def main():
     # Execute utility router pattern if applicable
     if args.list:
         util_list_entries(args.list, args.show_hashes)
-    if args.version:
+    if args.check_update:
         check_for_updates()
+    if args.version:
+        print_version()
 
     print("=== Passphrase Typing Trainer ===")
     
